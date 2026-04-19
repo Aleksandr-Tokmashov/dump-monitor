@@ -1,14 +1,14 @@
-from fastapi import FastAPI
-from app.db import engine
+from fastapi import FastAPI, Depends
+from sqlalchemy.orm import Session
+from app.db import get_db
+from app.db import engine, Base
+import app.models
+
+Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
 
-@app.get("/")
-def root():
-    return {"status": "ok"}
-
 @app.get("/db-check")
-def db_check():
-    conn = engine.connect()
-    result = conn.execute("SELECT 1")
+def db_check(db: Session = Depends(get_db)):
+    result = db.execute("SELECT 1")
     return {"db": list(result)}
