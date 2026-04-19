@@ -17,6 +17,8 @@ services:
     container_name: dump_backend
     volumes:
       - .:/app
+    environment:
+      - VK_TOKEN=${VK_TOKEN}
     ports:
       - "8000:8000"
     depends_on:
