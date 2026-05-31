@@ -2,6 +2,8 @@ import requests
 from app.db import SessionLocal
 from app.models import PostRaw
 import os
+from datetime import datetime, timedelta
+import time 
 
 # TODO: расширить парсинг:
 # - пагинация wall.get (offset)
@@ -47,23 +49,38 @@ def fetch_vk():
     db.commit()
     db.close()
 
-def get_posts(group_id):
+def get_posts(group_id, count=100, max_posts=1000):
     url = "https://api.vk.com/method/wall.get"
 
-    params = {
-        "owner_id": group_id,
-        "count": 5,
-        "access_token": VK_TOKEN,
-        "v": VK_VERSION
-    }
+    all_posts = []
+    offset = 0
 
-    data = requests.get(url, params=params).json()
+    while len(all_posts) < max_posts:
+        time.sleep(0.3)
 
-    if "error" in data:
-        print("VK ERROR:", data["error"])
-        return []
+        params = {
+            "owner_id": group_id,
+            "count": count,
+            "offset": offset,
+            "access_token": VK_TOKEN,
+            "v": VK_VERSION
+        }
 
-    return data["response"]["items"]
+        data = requests.get(url, params=params).json()
+
+        if "error" in data:
+            print("VK ERROR:", data["error"])
+            break
+
+        items = data["response"]["items"]
+
+        if not items:
+            break
+
+        all_posts.extend(items)
+        offset += count
+
+    return all_posts
 
 def get_comments(group_id, post_id):
     url = "https://api.vk.com/method/wall.getComments"
@@ -82,15 +99,32 @@ def get_comments(group_id, post_id):
         print("VK ERROR:", data["error"])
         return []
 
+    print("COMMENTS RESPONSE:", data)
+    
     return data["response"]["items"]
 
 def save_post(db, group_id, post):
     text = post.get("text", "")
-    if not text:
+    attachments = post.get("attachments", [])
+
+    six_months_ago = datetime.now() - timedelta(days=180)
+    post_date = datetime.fromtimestamp(post["date"])
+
+    if post_date < six_months_ago:
+        return
+    
+    if not text and not attachments:
         return
 
     url = f"https://vk.com/wall{group_id}_{post['id']}"
+    
+    existing = db.query(PostRaw).filter(PostRaw.url == url).first()
+    if existing:
+        return
 
+    if not text:
+        return
+    
     db.add(PostRaw(
         source="vk_post",
         text=text,

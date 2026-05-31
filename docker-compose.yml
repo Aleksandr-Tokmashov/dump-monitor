@@ -5,27 +5,47 @@ services:
     image: postgis/postgis:15-3.3
     container_name: dump_db
     restart: always
+
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: dumps
+
     ports:
       - "5432:5432"
+
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+    volumes:
+      - db_data:/var/lib/postgresql/data
 
   backend:
     build: .
     container_name: dump_backend
+
     volumes:
       - .:/app
-    environment:
-      - VK_TOKEN=${VK_TOKEN}
+
     ports:
       - "8000:8000"
-    depends_on:
-      - db
 
-networks:
-  default:
-    ipam:
-      config:
-        - subnet: 172.80.0.0/16
+    env_file:
+      - .env
+
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/dumps
+
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+    restart: always
+
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  db_data:

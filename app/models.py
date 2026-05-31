@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Text, Boolean, DateTime
+from sqlalchemy import Column, Integer, String, Text, Boolean, DateTime, Float
 from sqlalchemy.sql import func
 from app.db import Base
 
@@ -19,8 +19,10 @@ class Incident(Base):
 
     id = Column(Integer, primary_key=True)
     text = Column(Text)
-    lat = Column(String)
-    lon = Column(String)
+    station_name = Column(String)
+    lat = Column(Float)
+    lon = Column(Float)
+    distance_km = Column(Float)
     source_url = Column(String)
     created_at = Column(DateTime, server_default=func.now())
     status = Column(String, default="new")
